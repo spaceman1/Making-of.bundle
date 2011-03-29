@@ -1,7 +1,3 @@
-from PMS import *
-from PMS.Objects import *
-from PMS.Shortcuts import *
-
 import re
 
 PLUGIN_PREFIX = "/video/MakingOf"
@@ -39,6 +35,7 @@ def Start():
   MediaContainer.title1 = L('Making Of')
   MediaContainer.viewGroup = 'List'
   MediaContainer.art = R('art-default.png')
+  DirectoryItem.thumb = R('icon-default.png')
   HTTP.SetCacheTime(CACHE_TIME)
 ####################################################################################################
 def MainMenu():
@@ -62,7 +59,7 @@ def SectionMenu(sender, url):
 
 def VideosMenu(sender, url):
   dir = MediaContainer(title2=sender.itemTitle, viewGroup='Details')
-  page = GetFixedXML(url, True)
+  page = HTML.ElementFromURL(url)
   try:
     pageCount = int(page.xpath('//span[@class="current"]')[0].text.split(' ')[-1])
   except:
@@ -71,7 +68,7 @@ def VideosMenu(sender, url):
   
   for pageNum in range(1, pageCount + 1):
     if pageNum != 1:
-      page = GetFixedXML(url + '?page=' + str(pageNum), True)
+      page = HTML.ElementFromURL(url + '?page=' + str(pageNum))
     for tr in page.xpath('//table[@class="insiders_table table"]/tbody/tr'):
       thumb = ROOT + tr.xpath('child::td[@class="exclusive"]/a/img')[0].get('src')
       link = tr.xpath('child::td[@class="title"]/span[@class="hdr"]/a')[0]
@@ -84,30 +81,10 @@ def VideosMenu(sender, url):
 
 def VideoMenu(sender, url, thumb, summary, subtitle):
   dir = MediaContainer(title2=sender.itemTitle, viewGroup='Details')
-  script = GetFixedXML(url, True).xpath('//div[starts-with(@id,"media_viewer")]/script')[0].text
+  script = HTML.ElementFromURL(url).xpath('//div[starts-with(@id,"media_viewer")]/script')[0].get('src')
   xmlURL = re.search(r"([^']*\.xml)", script).group(1)
   xmlPage = GetFixedXML(ROOT + xmlURL, False)
   rtmpURL = xmlPage.xpath('/media_post/fms_url')[0].text + '/' + xmlPage.xpath('/media_post/stream_url')[0].text
   Log(rtmpURL)
   dir.Append(VideoItem(rtmpURL, title=sender.itemTitle, thumb=thumb, summary=summary, subtitle=subtitle))
   return dir
-####################################################################################################  
-def GetXML(url, isHTML=False, encoding='utf8'):
-  return XML.ElementFromURL(url, isHTML, encoding)
-
-def GetFixedXML(url, isHTML=False, encoding='utf8'):
-  return XML.ElementFromString(descape(HTTP.Request(url, encoding=encoding)), isHTML)
-  
-def descape_entity(m):
-  entity = m.group(1)
-  if entity == "raquo":
-    return "_"
-  if entity == "nbsp":
-    return " "
-  return m.group(0)
-    
-def descape(string):
-  pattern = re.compile("&(\w+?);")
-  pattern2 = re.compile(u'[\u201c\u201d]')
-  return pattern2.sub('"', pattern.sub(descape_entity, string))
-  
